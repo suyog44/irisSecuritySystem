@@ -1,0 +1,95 @@
+function OutputName = Recognition(TestImage, m, A, Eigenfaces)
+% Recognizing step....
+%
+% Description: This function compares two faces by projecting the images into facespace and 
+% measuring the Euclidean distance between them.
+%
+% Argument:      TestImage              - Path of the input test image
+%
+%                m                      - (M*Nx1) Mean of the training
+%                                         database, which is output of 'EigenfaceCore' function.
+%
+%                Eigenfaces             - (M*Nx(P-1)) Eigen vectors of the
+%                                         covariance matrix of the training
+%                                         database, which is output of 'EigenfaceCore' function.
+%
+%                A                      - (M*NxP) Matrix of centered image
+%                                         vectors, which is output of 'EigenfaceCore' function.
+% 
+% Returns:       OutputName             - Name of the recognized image in the training database.
+%
+              
+
+%%%%%%%%%%%%%%%%%%%%%%%% Projecting centered image vectors into facespace
+% All centered images are projected into facespace by multiplying in
+% Eigenface basis's. Projected vector of each face will be its corresponding
+% feature vector.
+global v vh hfig
+ProjectedImages = [];
+Train_Number = size(Eigenfaces,2);
+for i = 1 : Train_Number
+    temp = Eigenfaces'*A(:,i); % Projection of centered images into facespace
+    ProjectedImages = [ProjectedImages temp]; 
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%% Extracting the PCA features from test image
+InputImage = imread(TestImage);
+R=houghcircles(InputImage,50,150);
+InputImage=imresize(InputImage,[240 320]);
+%temp = InputImage(:,:,1);
+pos=get(vh.axes6,'position');
+axes(vh.axes6)
+imshow(InputImage)
+set(gca,'position',[pos(1:2) 320 240],'visible','off');
+hold on;
+  for i = 1:size(R,1)
+    x = R(i,1)-R(i,3);
+    y = R(i,2)-R(i,3);
+    w = 2*R(i,3);
+    rectangle('Position', [x y w w], 'EdgeColor', 'yellow', 'Curvature', [1 1]);
+  end
+  hold off;
+[irow icol] = size(R);
+testfeaturevector = reshape(R',irow*icol,1);
+Difference = double(testfeaturevector)-m; % Centered test image
+ProjectedTestImage = Eigenfaces'*Difference; % Test image feature vector
+
+%%%%%%%%%%%%%%%%%%%%%%%% Calculating Euclidean distances 
+% Euclidean distances between the projected test image and the projection
+% of all centered training images are calculated. Test image is
+% supposed to have minimum distance with its corresponding image in the
+% training database.
+
+Euc_dist = [];
+for i = 1 : Train_Number
+    q = ProjectedImages(:,i);
+    temp = ( norm( ProjectedTestImage - q ))^2;
+    Euc_dist = [Euc_dist temp];
+end
+
+[Euc_dist_min ,v.Recognized_index] = min(Euc_dist)
+
+OutputName = strcat(int2str(v.Recognized_index),'.bmp');
+if Euc_dist_min<5000
+
+   set(vh.text1,'visible','on','string','ACCESS RIGHT','foregroundcolor','blue')
+   path = 'D:\Nedaa Project\welcome.wav';
+   [S, Fs, N]=wavread(path);
+   pause(0.2)
+   wavplay(S,Fs)
+else 
+   set(vh.text1,'visible','on','string','ACCESS DENIED','foregroundcolor','red')
+   path = 'D:\Nedaa Project\siren07.wav';
+   [S, Fs, N]=wavread(path);
+   pause(0.2)
+   wavplay(S,Fs)
+   is='D:\Nedaa Project\is1.jpg';
+   info=imfinfo(is);
+   is=imread(is);
+   position=get(vh.axes6,'Position');
+   axes(vh.axes6);
+   image(is);
+set(vh.axes6,'position', [ position(1:2) info.Width info.Height],'visible','off');
+end
+
+
